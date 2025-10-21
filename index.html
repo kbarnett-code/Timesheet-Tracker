@@ -25,6 +25,7 @@
           const [showConfig, setShowConfig] = useState(true);
           const [showWorkerNames, setShowWorkerNames] = useState(false);
           const [showProjectNames, setShowProjectNames] = useState(false);
+          const [showActionsMenu, setShowActionsMenu] = useState(false);
           const [weekEndingDate, setWeekEndingDate] = useState('');
           const [rates, setRates] = useState({});
           const [ratesDisplay, setRatesDisplay] = useState({});
@@ -348,6 +349,23 @@
             }
           };
 
+          const clearTable = () => {
+            if (confirm('Clear all hours data? Worker names, rates, and configuration will be kept.')) {
+              const newHours = {};
+              workers.forEach(worker => {
+                newHours[worker] = {};
+                days.forEach(day => {
+                  newHours[worker][day] = {};
+                  projects.forEach(project => {
+                    newHours[worker][day][project] = '';
+                  });
+                });
+              });
+              setHours(newHours);
+              setShowActionsMenu(false);
+            }
+          };
+
           if (!isLoaded) {
             return <div className="p-6">Loading...</div>;
           }
@@ -370,29 +388,51 @@
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-xl font-bold text-gray-800">Timesheet Configuration</h2>
                   <div className="flex gap-2">
-                    <button
-                      onClick={saveTimesheet}
-                      className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition font-semibold"
-                      title="Download backup file"
-                    >
-                      💾 Backup
-                    </button>
-                    <label className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition font-semibold cursor-pointer" title="Load from backup file">
-                      📂 Load
-                      <input
-                        type="file"
-                        accept=".json"
-                        onChange={loadTimesheet}
-                        className="hidden"
-                      />
-                    </label>
-                    <button
-                      onClick={clearTimesheet}
-                      className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition font-semibold"
-                      title="Clear all data and start fresh"
-                    >
-                      🗑️ Clear
-                    </button>
+                    <div className="relative">
+                      <button
+                        onClick={() => setShowActionsMenu(!showActionsMenu)}
+                        className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition font-semibold flex items-center gap-2"
+                      >
+                        Actions ▼
+                      </button>
+                      {showActionsMenu && (
+                        <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
+                          <button
+                            onClick={() => {
+                              saveTimesheet();
+                              setShowActionsMenu(false);
+                            }}
+                            className="w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center gap-2 rounded-t-lg"
+                          >
+                            💾 Backup
+                          </button>
+                          <label className="w-full px-4 py-2 hover:bg-gray-100 flex items-center gap-2 cursor-pointer">
+                            📂 Load
+                            <input
+                              type="file"
+                              accept=".json"
+                              onChange={(e) => {
+                                loadTimesheet(e);
+                                setShowActionsMenu(false);
+                              }}
+                              className="hidden"
+                            />
+                          </label>
+                          <button
+                            onClick={clearTable}
+                            className="w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center gap-2 text-orange-600"
+                          >
+                            🗑️ Clear Table
+                          </button>
+                          <button
+                            onClick={clearTimesheet}
+                            className="w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center gap-2 text-red-600 rounded-b-lg"
+                          >
+                            🗑️ Clear All
+                          </button>
+                        </div>
+                      )}
+                    </div>
                     <button
                       onClick={() => setShowConfig(!showConfig)}
                       className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition font-semibold"
@@ -416,7 +456,7 @@
                             onClick={() => setShowWorkerNames(!showWorkerNames)}
                             className="px-3 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition text-sm"
                           >
-                            {showWorkerNames ? '▼ Hide Names' : '▶ Edit Names'}
+                            {showWorkerNames ? '▼ Hide Names' : '▶ Edit Names & Rates'}
                           </button>
                         </div>
                         <input
@@ -436,14 +476,22 @@
                         {showWorkerNames && (
                           <div className="space-y-2">
                             {workers.map((worker, index) => (
-                              <input
-                                key={index}
-                                type="text"
-                                value={worker}
-                                onChange={(e) => handleWorkerNameChange(index, e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                placeholder={`Worker ${index + 1}`}
-                              />
+                              <div key={index} className="grid grid-cols-2 gap-2">
+                                <input
+                                  type="text"
+                                  value={worker}
+                                  onChange={(e) => handleWorkerNameChange(index, e.target.value)}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  placeholder={`Worker ${index + 1}`}
+                                />
+                                <input
+                                  type="text"
+                                  value={ratesDisplay[worker] || ''}
+                                  onChange={(e) => handleRateChange(worker, e.target.value)}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  placeholder="Rate (₡/hr)"
+                                />
+                              </div>
                             ))}
                           </div>
                         )}
@@ -545,14 +593,8 @@
                     {workers.map((worker, workerIndex) => (
                       <tr key={worker} className={workerIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                         <td className="border border-gray-400 px-3 py-2 font-semibold">{worker}</td>
-                        <td className="border border-gray-400 px-1 py-1">
-                          <input
-                            type="text"
-                            value={ratesDisplay[worker] || ''}
-                            onChange={(e) => handleRateChange(worker, e.target.value)}
-                            className="w-full px-2 py-1 border border-gray-300 rounded text-center focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                            placeholder="0"
-                          />
+                        <td className="border border-gray-400 px-2 py-2 text-center bg-gray-100 font-semibold">
+                          {ratesDisplay[worker] ? `₡${ratesDisplay[worker]}` : '-'}
                         </td>
                         {days.map(day => (
                           projects.map(project => (
