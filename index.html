@@ -57,6 +57,41 @@
             return initial;
           });
 
+          // Load data from localStorage when component mounts
+          useEffect(() => {
+            const savedData = localStorage.getItem('timesheetData');
+            if (savedData) {
+              try {
+                const data = JSON.parse(savedData);
+                setNumWorkers(data.numWorkers || 4);
+                setNumProjects(data.numProjects || 2);
+                setWorkers(data.workers || ['Worker 1', 'Worker 2', 'Worker 3', 'Worker 4']);
+                setProjects(data.projects || ['Project A', 'Project B']);
+                setWeekEndingDate(data.weekEndingDate || '');
+                setRates(data.rates || {});
+                setRatesDisplay(data.ratesDisplay || {});
+                setHours(data.hours || {});
+              } catch (error) {
+                console.error('Error loading saved data:', error);
+              }
+            }
+          }, []);
+
+          // Save data to localStorage whenever it changes
+          useEffect(() => {
+            const timesheetData = {
+              numWorkers,
+              numProjects,
+              workers,
+              projects,
+              weekEndingDate,
+              rates,
+              ratesDisplay,
+              hours
+            };
+            localStorage.setItem('timesheetData', JSON.stringify(timesheetData));
+          }, [numWorkers, numProjects, workers, projects, weekEndingDate, rates, ratesDisplay, hours]);
+
           useEffect(() => {
             const newWorkers = Array.from({ length: numWorkers }, (_, i) => 
               workers[i] || `Worker ${i + 1}`
@@ -313,6 +348,13 @@
             event.target.value = '';
           };
 
+          const clearTimesheet = () => {
+            if (confirm('Are you sure you want to clear all data? This cannot be undone.')) {
+              localStorage.removeItem('timesheetData');
+              window.location.reload();
+            }
+          };
+
           return (
             <div className="p-6 bg-gray-50 min-h-screen">
               <style>
@@ -334,11 +376,12 @@
                     <button
                       onClick={saveTimesheet}
                       className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition font-semibold"
+                      title="Download backup file"
                     >
-                      💾 Save Timesheet
+                      💾 Backup
                     </button>
-                    <label className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition font-semibold cursor-pointer">
-                      📂 Load Timesheet
+                    <label className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition font-semibold cursor-pointer" title="Load from backup file">
+                      📂 Load
                       <input
                         type="file"
                         accept=".json"
@@ -347,12 +390,23 @@
                       />
                     </label>
                     <button
+                      onClick={clearTimesheet}
+                      className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition font-semibold"
+                      title="Clear all data and start fresh"
+                    >
+                      🗑️ Clear
+                    </button>
+                    <button
                       onClick={() => setShowConfig(!showConfig)}
                       className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition font-semibold"
                     >
                       {showConfig ? 'Hide Configuration' : 'Show Configuration'}
                     </button>
                   </div>
+                </div>
+                
+                <div className="text-sm text-gray-600 mb-3 bg-blue-50 p-2 rounded">
+                  ✨ <strong>Auto-save enabled!</strong> Your data is automatically saved in your browser and will be here when you return.
                 </div>
                 
                 {showConfig && (
