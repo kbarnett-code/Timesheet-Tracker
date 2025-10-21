@@ -16,6 +16,8 @@
         const { useState, useEffect } = React;
 
         const TimesheetTracker = () => {
+          const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+          
           const [numWorkers, setNumWorkers] = useState(4);
           const [numProjects, setNumProjects] = useState(2);
           const [workers, setWorkers] = useState(['Worker 1', 'Worker 2', 'Worker 3', 'Worker 4']);
@@ -23,39 +25,11 @@
           const [showConfig, setShowConfig] = useState(true);
           const [showWorkerNames, setShowWorkerNames] = useState(false);
           const [showProjectNames, setShowProjectNames] = useState(false);
-          const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-          
           const [weekEndingDate, setWeekEndingDate] = useState('');
-          
-          const [rates, setRates] = useState(() => {
-            const initial = {};
-            workers.forEach(worker => {
-              initial[worker] = '';
-            });
-            return initial;
-          });
-
-          const [ratesDisplay, setRatesDisplay] = useState(() => {
-            const initial = {};
-            workers.forEach(worker => {
-              initial[worker] = '';
-            });
-            return initial;
-          });
-          
-          const [hours, setHours] = useState(() => {
-            const initial = {};
-            workers.forEach(worker => {
-              initial[worker] = {};
-              days.forEach(day => {
-                initial[worker][day] = {};
-                projects.forEach(project => {
-                  initial[worker][day][project] = '';
-                });
-              });
-            });
-            return initial;
-          });
+          const [rates, setRates] = useState({});
+          const [ratesDisplay, setRatesDisplay] = useState({});
+          const [hours, setHours] = useState({});
+          const [isLoaded, setIsLoaded] = useState(false);
 
           // Load data from localStorage when component mounts
           useEffect(() => {
@@ -75,10 +49,58 @@
                 console.error('Error loading saved data:', error);
               }
             }
+            setIsLoaded(true);
           }, []);
+
+          // Initialize empty hours structure for new workers
+          useEffect(() => {
+            if (!isLoaded) return;
+            
+            setHours(prevHours => {
+              const newHours = { ...prevHours };
+              workers.forEach(worker => {
+                if (!newHours[worker]) {
+                  newHours[worker] = {};
+                }
+                days.forEach(day => {
+                  if (!newHours[worker][day]) {
+                    newHours[worker][day] = {};
+                  }
+                  projects.forEach(project => {
+                    if (newHours[worker][day][project] === undefined) {
+                      newHours[worker][day][project] = '';
+                    }
+                  });
+                });
+              });
+              return newHours;
+            });
+
+            setRates(prevRates => {
+              const newRates = { ...prevRates };
+              workers.forEach(worker => {
+                if (newRates[worker] === undefined) {
+                  newRates[worker] = '';
+                }
+              });
+              return newRates;
+            });
+
+            setRatesDisplay(prevRatesDisplay => {
+              const newRatesDisplay = { ...prevRatesDisplay };
+              workers.forEach(worker => {
+                if (newRatesDisplay[worker] === undefined) {
+                  newRatesDisplay[worker] = '';
+                }
+              });
+              return newRatesDisplay;
+            });
+          }, [workers, projects, isLoaded]);
 
           // Save data to localStorage whenever it changes
           useEffect(() => {
+            if (!isLoaded) return;
+            
             const timesheetData = {
               numWorkers,
               numProjects,
@@ -90,57 +112,25 @@
               hours
             };
             localStorage.setItem('timesheetData', JSON.stringify(timesheetData));
-          }, [numWorkers, numProjects, workers, projects, weekEndingDate, rates, ratesDisplay, hours]);
+          }, [numWorkers, numProjects, workers, projects, weekEndingDate, rates, ratesDisplay, hours, isLoaded]);
 
           useEffect(() => {
+            if (!isLoaded) return;
+            
             const newWorkers = Array.from({ length: numWorkers }, (_, i) => 
               workers[i] || `Worker ${i + 1}`
             );
             setWorkers(newWorkers);
-            
-            const newRates = {};
-            newWorkers.forEach(worker => {
-              newRates[worker] = rates[worker] || '';
-            });
-            setRates(newRates);
-            
-            const newRatesDisplay = {};
-            newWorkers.forEach(worker => {
-              newRatesDisplay[worker] = ratesDisplay[worker] || '';
-            });
-            setRatesDisplay(newRatesDisplay);
-            
-            const newHours = {};
-            newWorkers.forEach(worker => {
-              newHours[worker] = {};
-              days.forEach(day => {
-                newHours[worker][day] = {};
-                projects.forEach(project => {
-                  newHours[worker][day][project] = (hours[worker]?.[day]?.[project]) || '';
-                });
-              });
-            });
-            setHours(newHours);
-          }, [numWorkers]);
+          }, [numWorkers, isLoaded]);
 
           useEffect(() => {
+            if (!isLoaded) return;
+            
             const newProjects = Array.from({ length: numProjects }, (_, i) => 
               projects[i] || String.fromCharCode(65 + i)
             );
             setProjects(newProjects);
-            
-            const newHours = {};
-            workers.forEach(worker => {
-              newHours[worker] = {};
-              days.forEach(day => {
-                newHours[worker][day] = {};
-                newProjects.forEach(project => {
-                  newHours[worker][day][project] = (hours[worker]?.[day]?.[project]) || '';
-                });
-              });
-            });
-            setHours(newHours);
-          }, [numProjects]);
+          }, [numProjects, isLoaded]);
 
           const handleWorkerNameChange = (index, newName) => {
             const oldName = workers[index];
@@ -258,6 +248,7 @@
           };
 
           const calculateDailyTotal = (worker, day) => {
+            if (!hours[worker] || !hours[worker][day]) return 0;
             return projects.reduce((sum, project) => {
               const value = parseFloat(hours[worker][day][project]) || 0;
               return sum + value;
@@ -278,6 +269,7 @@
 
           const calculateDayProjectTotal = (day, project) => {
             return workers.reduce((sum, worker) => {
+              if (!hours[worker] || !hours[worker][day]) return sum;
               const value = parseFloat(hours[worker][day][project]) || 0;
               return sum + value;
             }, 0);
@@ -287,6 +279,7 @@
             return workers.reduce((sum, worker) => {
               const rate = parseFloat(rates[worker]) || 0;
               const projectHours = days.reduce((hrs, day) => {
+                if (!hours[worker] || !hours[worker][day]) return hrs;
                 const value = parseFloat(hours[worker][day][project]) || 0;
                 return hrs + value;
               }, 0);
@@ -354,6 +347,10 @@
               window.location.reload();
             }
           };
+
+          if (!isLoaded) {
+            return <div className="p-6">Loading...</div>;
+          }
 
           return (
             <div className="p-6 bg-gray-50 min-h-screen">
@@ -551,7 +548,7 @@
                         <td className="border border-gray-400 px-1 py-1">
                           <input
                             type="text"
-                            value={ratesDisplay[worker]}
+                            value={ratesDisplay[worker] || ''}
                             onChange={(e) => handleRateChange(worker, e.target.value)}
                             className="w-full px-2 py-1 border border-gray-300 rounded text-center focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                             placeholder="0"
@@ -564,7 +561,7 @@
                                 type="number"
                                 min="0"
                                 step="0.5"
-                                value={hours[worker][day][project]}
+                                value={(hours[worker]?.[day]?.[project]) || ''}
                                 onChange={(e) => handleHourChange(worker, day, project, e.target.value)}
                                 className="w-full px-1 py-1 border border-gray-300 rounded text-center focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                                 placeholder="0"
