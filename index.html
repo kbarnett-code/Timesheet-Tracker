@@ -1,688 +1,669 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Weekly Timesheet Tracker</title>
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Weekly Timesheet Tracker</title>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body>
-    <div id="root"></div>
-    
-    <script type="text/babel">
-        const { useState, useEffect } = React;
+  <div id="root"></div>
 
-        const TimesheetTracker = () => {
-          const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-          
-          const [numWorkers, setNumWorkers] = useState(4);
-          const [numProjects, setNumProjects] = useState(2);
-          const [workers, setWorkers] = useState(['Worker 1', 'Worker 2', 'Worker 3', 'Worker 4']);
-          const [projects, setProjects] = useState(['Project A', 'Project B']);
-          const [showConfig, setShowConfig] = useState(true);
-          const [showWorkerNames, setShowWorkerNames] = useState(false);
-          const [showProjectNames, setShowProjectNames] = useState(false);
-          const [showActionsMenu, setShowActionsMenu] = useState(false);
-          const [weekEndingDate, setWeekEndingDate] = useState('');
-          const [rates, setRates] = useState({});
-          const [ratesDisplay, setRatesDisplay] = useState({});
-          const [hours, setHours] = useState({});
-          const [isLoaded, setIsLoaded] = useState(false);
+  <script type="text/babel">
+    const { useState, useEffect } = React;
 
-          // Close Actions dropdown when clicking outside
-          useEffect(() => {
-            const handleClickOutside = (event) => {
-              if (showActionsMenu && !event.target.closest('.actions-dropdown')) {
-                setShowActionsMenu(false);
-              }
-            };
+    const TimesheetTracker = () => {
+      const allDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      
+      const [numWorkers, setNumWorkers] = useState(4);
+      const [numProjects, setNumProjects] = useState(2);
+      const [workers, setWorkers] = useState(['Worker 1', 'Worker 2', 'Worker 3', 'Worker 4']);
+      const [projects, setProjects] = useState(['Project A', 'Project B']);
+      const [showConfig, setShowConfig] = useState(true);
+      const [showWorkerNames, setShowWorkerNames] = useState(false);
+      const [showProjectNames, setShowProjectNames] = useState(false);
+      const [showActionsMenu, setShowActionsMenu] = useState(false);
+      const [includeSaturday, setIncludeSaturday] = useState(true);
+      const [weekEndingDate, setWeekEndingDate] = useState('');
+      const [rates, setRates] = useState({});
+      const [ratesDisplay, setRatesDisplay] = useState({});
+      const [hours, setHours] = useState({});
+      const [tableKey, setTableKey] = useState(0);
 
-            document.addEventListener('click', handleClickOutside);
-            return () => document.removeEventListener('click', handleClickOutside);
-          }, [showActionsMenu]);
+      // Dynamically determine which days to show based on toggle
+      const days = includeSaturday ? allDays : allDays.slice(0, 5);
 
-          // Load data from localStorage when component mounts
-          useEffect(() => {
-            const savedData = localStorage.getItem('timesheetData');
-            if (savedData) {
-              try {
-                const data = JSON.parse(savedData);
-                setNumWorkers(data.numWorkers || 4);
-                setNumProjects(data.numProjects || 2);
-                setWorkers(data.workers || ['Worker 1', 'Worker 2', 'Worker 3', 'Worker 4']);
-                setProjects(data.projects || ['Project A', 'Project B']);
-                setWeekEndingDate(data.weekEndingDate || '');
-                setRates(data.rates || {});
-                setRatesDisplay(data.ratesDisplay || {});
-                setHours(data.hours || {});
-              } catch (error) {
-                console.error('Error loading saved data:', error);
-              }
-            }
-            setIsLoaded(true);
-          }, []);
-
-          // Initialize empty hours structure for new workers
-          useEffect(() => {
-            if (!isLoaded) return;
-            
-            setHours(prevHours => {
-              const newHours = { ...prevHours };
-              workers.forEach(worker => {
-                if (!newHours[worker]) {
-                  newHours[worker] = {};
-                }
-                days.forEach(day => {
-                  if (!newHours[worker][day]) {
-                    newHours[worker][day] = {};
-                  }
-                  projects.forEach(project => {
-                    if (newHours[worker][day][project] === undefined) {
-                      newHours[worker][day][project] = '';
-                    }
-                  });
-                });
-              });
-              return newHours;
-            });
-
-            setRates(prevRates => {
-              const newRates = { ...prevRates };
-              workers.forEach(worker => {
-                if (newRates[worker] === undefined) {
-                  newRates[worker] = '';
-                }
-              });
-              return newRates;
-            });
-
-            setRatesDisplay(prevRatesDisplay => {
-              const newRatesDisplay = { ...prevRatesDisplay };
-              workers.forEach(worker => {
-                if (newRatesDisplay[worker] === undefined) {
-                  newRatesDisplay[worker] = '';
-                }
-              });
-              return newRatesDisplay;
-            });
-          }, [workers, projects, isLoaded]);
-
-          // Save data to localStorage whenever it changes
-          useEffect(() => {
-            if (!isLoaded) return;
-            
-            const timesheetData = {
-              numWorkers,
-              numProjects,
-              workers,
-              projects,
-              weekEndingDate,
-              rates,
-              ratesDisplay,
-              hours
-            };
-            localStorage.setItem('timesheetData', JSON.stringify(timesheetData));
-          }, [numWorkers, numProjects, workers, projects, weekEndingDate, rates, ratesDisplay, hours, isLoaded]);
-
-          useEffect(() => {
-            if (!isLoaded) return;
-            
-            const newWorkers = Array.from({ length: numWorkers }, (_, i) => 
-              workers[i] || `Worker ${i + 1}`
-            );
-            setWorkers(newWorkers);
-          }, [numWorkers, isLoaded]);
-
-          useEffect(() => {
-            if (!isLoaded) return;
-            
-            const newProjects = Array.from({ length: numProjects }, (_, i) => 
-              projects[i] || String.fromCharCode(65 + i)
-            );
-            setProjects(newProjects);
-          }, [numProjects, isLoaded]);
-
-          const handleWorkerNameChange = (index, newName) => {
-            const oldName = workers[index];
-            const newWorkers = [...workers];
-            newWorkers[index] = newName;
-            setWorkers(newWorkers);
-            
-            const newRates = { ...rates };
-            if (oldName !== newName) {
-              newRates[newName] = newRates[oldName] || '';
-              delete newRates[oldName];
-            }
-            setRates(newRates);
-            
-            const newRatesDisplay = { ...ratesDisplay };
-            if (oldName !== newName) {
-              newRatesDisplay[newName] = newRatesDisplay[oldName] || '';
-              delete newRatesDisplay[oldName];
-            }
-            setRatesDisplay(newRatesDisplay);
-            
-            const newHours = { ...hours };
-            if (oldName !== newName) {
-              newHours[newName] = newHours[oldName] || {};
-              delete newHours[oldName];
-            }
-            setHours(newHours);
-          };
-
-          const handleProjectNameChange = (index, newName) => {
-            const oldName = projects[index];
-            const newProjects = [...projects];
-            newProjects[index] = newName;
-            setProjects(newProjects);
-            
-            const newHours = { ...hours };
-            workers.forEach(worker => {
-              if (newHours[worker]) {
-                days.forEach(day => {
-                  if (newHours[worker][day] && oldName !== newName) {
-                    newHours[worker][day][newName] = newHours[worker][day][oldName] || '';
-                    delete newHours[worker][day][oldName];
-                  }
-                });
-              }
-            });
-            setHours(newHours);
-          };
-
-          const handleDateChange = (value) => {
-            if (value) {
-              const selectedDate = new Date(value + 'T00:00:00');
-              const dayOfWeek = selectedDate.getDay();
-              
-              if (dayOfWeek === 6) {
-                setWeekEndingDate(value);
-              } else {
-                const daysUntilSaturday = (6 - dayOfWeek + 7) % 7;
-                const saturday = new Date(selectedDate);
-                saturday.setDate(saturday.getDate() + daysUntilSaturday);
-                
-                const saturdayString = saturday.toISOString().split('T')[0];
-                setWeekEndingDate(saturdayString);
-              }
-            } else {
-              setWeekEndingDate(value);
-            }
-          };
-
-          const handleHourChange = (worker, day, project, value) => {
-            const numValue = value === '' ? '' : parseFloat(value);
-            if (value === '' || (!isNaN(numValue) && numValue >= 0)) {
-              setHours(prev => ({
-                ...prev,
-                [worker]: {
-                  ...prev[worker],
-                  [day]: {
-                    ...prev[worker][day],
-                    [project]: value
-                  }
-                }
-              }));
-            }
-          };
-
-          const handleRateChange = (worker, value) => {
-            const cleanValue = value.replace(/[^\d]/g, '');
-            
-            if (cleanValue === '') {
-              setRates(prev => ({
-                ...prev,
-                [worker]: ''
-              }));
-              setRatesDisplay(prev => ({
-                ...prev,
-                [worker]: ''
-              }));
-            } else {
-              const numValue = parseInt(cleanValue);
-              if (!isNaN(numValue) && numValue >= 0) {
-                setRates(prev => ({
-                  ...prev,
-                  [worker]: cleanValue
-                }));
-                setRatesDisplay(prev => ({
-                  ...prev,
-                  [worker]: numValue.toLocaleString('en-US')
-                }));
-              }
-            }
-          };
-
-          const formatCurrency = (value) => {
-            return Math.round(value).toLocaleString('en-US');
-          };
-
-          const calculateDailyTotal = (worker, day) => {
-            if (!hours[worker] || !hours[worker][day]) return 0;
-            return projects.reduce((sum, project) => {
-              const value = parseFloat(hours[worker][day][project]) || 0;
-              return sum + value;
-            }, 0);
-          };
-
-          const calculateWorkerTotal = (worker) => {
-            return days.reduce((sum, day) => {
-              return sum + calculateDailyTotal(worker, day);
-            }, 0);
-          };
-
-          const calculatePayout = (worker) => {
-            const totalHours = calculateWorkerTotal(worker);
-            const rate = parseFloat(rates[worker]) || 0;
-            return totalHours * rate;
-          };
-
-          const calculateDayProjectTotal = (day, project) => {
-            return workers.reduce((sum, worker) => {
-              if (!hours[worker] || !hours[worker][day]) return sum;
-              const value = parseFloat(hours[worker][day][project]) || 0;
-              return sum + value;
-            }, 0);
-          };
-
-          const calculateProjectTotalCost = (project) => {
-            return workers.reduce((sum, worker) => {
-              const rate = parseFloat(rates[worker]) || 0;
-              const projectHours = days.reduce((hrs, day) => {
-                if (!hours[worker] || !hours[worker][day]) return hrs;
-                const value = parseFloat(hours[worker][day][project]) || 0;
-                return hrs + value;
-              }, 0);
-              return sum + (projectHours * rate);
-            }, 0);
-          };
-
-          const calculateGrandTotal = () => {
-            return workers.reduce((sum, worker) => sum + calculateWorkerTotal(worker), 0);
-          };
-
-          const calculateTotalPayout = () => {
-            return workers.reduce((sum, worker) => sum + calculatePayout(worker), 0);
-          };
-
-          const saveTimesheet = () => {
-            const timesheetData = {
-              numWorkers,
-              numProjects,
-              workers,
-              projects,
-              weekEndingDate,
-              rates,
-              ratesDisplay,
-              hours
-            };
-            const dataStr = JSON.stringify(timesheetData, null, 2);
-            const dataBlob = new Blob([dataStr], { type: 'application/json' });
-            const url = URL.createObjectURL(dataBlob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `timesheet_${weekEndingDate || 'backup'}.json`;
-            link.click();
-            URL.revokeObjectURL(url);
-          };
-
-          const loadTimesheet = (event) => {
-            const file = event.target.files[0];
-            if (file) {
-              const reader = new FileReader();
-              reader.onload = (e) => {
-                try {
-                  const data = JSON.parse(e.target.result);
-                  setNumWorkers(data.numWorkers || 4);
-                  setNumProjects(data.numProjects || 2);
-                  setWorkers(data.workers || []);
-                  setProjects(data.projects || []);
-                  setWeekEndingDate(data.weekEndingDate || '');
-                  setRates(data.rates || {});
-                  setRatesDisplay(data.ratesDisplay || {});
-                  setHours(data.hours || {});
-                  alert('Timesheet loaded successfully!');
-                } catch (error) {
-                  alert('Error loading timesheet. Please check the file format.');
-                }
-              };
-              reader.readAsText(file);
-            }
-            event.target.value = '';
-          };
-
-          const clearTimesheet = () => {
-            if (confirm('Are you sure you want to clear all data? This cannot be undone.')) {
-              localStorage.removeItem('timesheetData');
-              window.location.reload();
-            }
-          };
-
-          const clearTable = () => {
-            if (confirm('Clear all hours data? Worker names, rates, and configuration will be kept.')) {
-              const newHours = {};
-              workers.forEach(worker => {
-                newHours[worker] = {};
-                days.forEach(day => {
-                  newHours[worker][day] = {};
-                  projects.forEach(project => {
-                    newHours[worker][day][project] = '';
-                  });
-                });
-              });
-              setHours(newHours);
-              setShowActionsMenu(false);
-            }
-          };
-
-          if (!isLoaded) {
-            return <div className="p-6">Loading...</div>;
+      // Close Actions dropdown when clicking outside
+      useEffect(() => {
+        const handleClickOutside = (event) => {
+          if (showActionsMenu && !event.target.closest('.actions-dropdown')) {
+            setShowActionsMenu(false);
           }
+        };
 
-          return (
-            <div className="p-6 bg-gray-50 min-h-screen">
-              <style>
-                {`
-                  input[type=number]::-webkit-inner-spin-button,
-                  input[type=number]::-webkit-outer-spin-button {
-                    -webkit-appearance: none;
-                    margin: 0;
-                  }
-                  input[type=number] {
-                    -moz-appearance: textfield;
-                  }
-                `}
-              </style>
-              <div className="mb-6 bg-white rounded-lg shadow-md p-4">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-bold text-gray-800">Timesheet Configuration</h2>
-                  <div className="flex gap-2">
-                    <div className="relative actions-dropdown">
+        document.addEventListener('click', handleClickOutside);
+        return () => document.removeEventListener('click', handleClickOutside);
+      }, [showActionsMenu]);
+
+      useEffect(() => {
+        setHours(prevHours => {
+          const newHours = { ...prevHours };
+          workers.forEach(worker => {
+            if (!newHours[worker]) {
+              newHours[worker] = {};
+            }
+            allDays.forEach(day => {
+              if (!newHours[worker][day]) {
+                newHours[worker][day] = {};
+              }
+              projects.forEach(project => {
+                if (newHours[worker][day][project] === undefined) {
+                  newHours[worker][day][project] = '';
+                }
+              });
+            });
+          });
+          return newHours;
+        });
+
+        setRates(prevRates => {
+          const newRates = { ...prevRates };
+          workers.forEach(worker => {
+            if (newRates[worker] === undefined) {
+              newRates[worker] = '';
+            }
+          });
+          return newRates;
+        });
+
+        setRatesDisplay(prevRatesDisplay => {
+          const newRatesDisplay = { ...prevRatesDisplay };
+          workers.forEach(worker => {
+            if (newRatesDisplay[worker] === undefined) {
+              newRatesDisplay[worker] = '';
+            }
+          });
+          return newRatesDisplay;
+        });
+      }, [workers, projects]);
+
+      useEffect(() => {
+        const newWorkers = Array.from({ length: numWorkers }, (_, i) => 
+          workers[i] || `Worker ${i + 1}`
+        );
+        setWorkers(newWorkers);
+      }, [numWorkers]);
+
+      useEffect(() => {
+        const newProjects = Array.from({ length: numProjects }, (_, i) => 
+          projects[i] || String.fromCharCode(65 + i)
+        );
+        setProjects(newProjects);
+      }, [numProjects]);
+
+      const handleWorkerNameChange = (index, newName) => {
+        const oldName = workers[index];
+        const newWorkers = [...workers];
+        newWorkers[index] = newName;
+        setWorkers(newWorkers);
+        
+        const newRates = { ...rates };
+        if (oldName !== newName) {
+          newRates[newName] = newRates[oldName] || '';
+          delete newRates[oldName];
+        }
+        setRates(newRates);
+        
+        const newRatesDisplay = { ...ratesDisplay };
+        if (oldName !== newName) {
+          newRatesDisplay[newName] = newRatesDisplay[oldName] || '';
+          delete newRatesDisplay[oldName];
+        }
+        setRatesDisplay(newRatesDisplay);
+        
+        const newHours = { ...hours };
+        if (oldName !== newName) {
+          newHours[newName] = newHours[oldName] || {};
+          delete newHours[oldName];
+        }
+        setHours(newHours);
+      };
+
+      const handleProjectNameChange = (index, newName) => {
+        const oldName = projects[index];
+        const newProjects = [...projects];
+        newProjects[index] = newName;
+        setProjects(newProjects);
+        
+        const newHours = { ...hours };
+        workers.forEach(worker => {
+          if (newHours[worker]) {
+            allDays.forEach(day => {
+              if (newHours[worker][day] && oldName !== newName) {
+                newHours[worker][day][newName] = newHours[worker][day][oldName] || '';
+                delete newHours[worker][day][oldName];
+              }
+            });
+          }
+        });
+        setHours(newHours);
+      };
+
+      const handleDateChange = (value) => {
+        if (value) {
+          const selectedDate = new Date(value + 'T00:00:00');
+          const dayOfWeek = selectedDate.getDay();
+          
+          if (dayOfWeek === 6) {
+            setWeekEndingDate(value);
+          } else {
+            const daysUntilSaturday = (6 - dayOfWeek + 7) % 7;
+            const saturday = new Date(selectedDate);
+            saturday.setDate(saturday.getDate() + daysUntilSaturday);
+            
+            const saturdayString = saturday.toISOString().split('T')[0];
+            setWeekEndingDate(saturdayString);
+          }
+        } else {
+          setWeekEndingDate(value);
+        }
+      };
+
+      const handleHourChange = (worker, day, project, value) => {
+        const numValue = value === '' ? '' : parseFloat(value);
+        if (value === '' || (!isNaN(numValue) && numValue >= 0)) {
+          setHours(prev => ({
+            ...prev,
+            [worker]: {
+              ...prev[worker],
+              [day]: {
+                ...prev[worker][day],
+                [project]: value
+              }
+            }
+          }));
+        }
+      };
+
+      const handleRateChange = (worker, value) => {
+        const cleanValue = value.replace(/[^\d]/g, '');
+        
+        if (cleanValue === '') {
+          setRates(prev => ({
+            ...prev,
+            [worker]: ''
+          }));
+          setRatesDisplay(prev => ({
+            ...prev,
+            [worker]: ''
+          }));
+        } else {
+          const numValue = parseInt(cleanValue);
+          if (!isNaN(numValue) && numValue >= 0) {
+            setRates(prev => ({
+              ...prev,
+              [worker]: cleanValue
+            }));
+            setRatesDisplay(prev => ({
+              ...prev,
+              [worker]: numValue.toLocaleString('en-US')
+            }));
+          }
+        }
+      };
+
+      const formatCurrency = (value) => {
+        return Math.round(value).toLocaleString('en-US');
+      };
+
+      const calculateDailyTotal = (worker, day) => {
+        if (!hours[worker] || !hours[worker][day]) return 0;
+        return projects.reduce((sum, project) => {
+          const value = parseFloat(hours[worker][day][project]) || 0;
+          return sum + value;
+        }, 0);
+      };
+
+      const calculateWorkerTotal = (worker) => {
+        return days.reduce((sum, day) => {
+          return sum + calculateDailyTotal(worker, day);
+        }, 0);
+      };
+
+      const calculatePayout = (worker) => {
+        const totalHours = calculateWorkerTotal(worker);
+        const rate = parseFloat(rates[worker]) || 0;
+        return totalHours * rate;
+      };
+
+      const calculateDayProjectTotal = (day, project) => {
+        return workers.reduce((sum, worker) => {
+          if (!hours[worker] || !hours[worker][day]) return sum;
+          const value = parseFloat(hours[worker][day][project]) || 0;
+          return sum + value;
+        }, 0);
+      };
+
+      const calculateProjectTotalCost = (project) => {
+        return workers.reduce((sum, worker) => {
+          const rate = parseFloat(rates[worker]) || 0;
+          const projectHours = days.reduce((hrs, day) => {
+            if (!hours[worker] || !hours[worker][day]) return hrs;
+            const value = parseFloat(hours[worker][day][project]) || 0;
+            return hrs + value;
+          }, 0);
+          return sum + (projectHours * rate);
+        }, 0);
+      };
+
+      const calculateGrandTotal = () => {
+        return workers.reduce((sum, worker) => sum + calculateWorkerTotal(worker), 0);
+      };
+
+      const calculateTotalPayout = () => {
+        return workers.reduce((sum, worker) => sum + calculatePayout(worker), 0);
+      };
+
+      const saveTimesheet = () => {
+        const timesheetData = {
+          numWorkers,
+          numProjects,
+          workers,
+          projects,
+          weekEndingDate,
+          rates,
+          ratesDisplay,
+          hours
+        };
+        const dataStr = JSON.stringify(timesheetData, null, 2);
+        const dataBlob = new Blob([dataStr], { type: 'application/json' });
+        const url = URL.createObjectURL(dataBlob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `timesheet_${weekEndingDate || 'backup'}.json`;
+        link.click();
+        URL.revokeObjectURL(url);
+      };
+
+      const loadTimesheet = (event) => {
+        const file = event.target.files[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            try {
+              const data = JSON.parse(e.target.result);
+              setNumWorkers(data.numWorkers || 4);
+              setNumProjects(data.numProjects || 2);
+              setWorkers(data.workers || []);
+              setProjects(data.projects || []);
+              setWeekEndingDate(data.weekEndingDate || '');
+              setRates(data.rates || {});
+              setRatesDisplay(data.ratesDisplay || {});
+              setHours(data.hours || {});
+              alert('Timesheet loaded successfully!');
+            } catch (error) {
+              alert('Error loading timesheet. Please check the file format.');
+            }
+          };
+          reader.readAsText(file);
+        }
+        event.target.value = '';
+      };
+
+      const clearTimesheet = () => {
+        if (window.confirm('Are you sure you want to clear all data? This cannot be undone.')) {
+          setNumWorkers(4);
+          setNumProjects(2);
+          setWorkers(['Worker 1', 'Worker 2', 'Worker 3', 'Worker 4']);
+          setProjects(['Project A', 'Project B']);
+          setWeekEndingDate('');
+          setRates({});
+          setRatesDisplay({});
+          setHours({});
+          setShowActionsMenu(false);
+        }
+      };
+
+      const clearTable = () => {
+        if (window.confirm('Clear all hours data? Worker names, rates, and configuration will be kept.')) {
+          const emptyHours = {};
+          workers.forEach(worker => {
+            emptyHours[worker] = {};
+            days.forEach(day => {
+              emptyHours[worker][day] = {};
+              projects.forEach(project => {
+                emptyHours[worker][day][project] = '';
+              });
+            });
+          });
+          
+          setHours(emptyHours);
+          
+          setTimeout(() => {
+            setTableKey(prev => prev + 1);
+          }, 0);
+          
+          setShowActionsMenu(false);
+        }
+      };
+
+      return (
+        <div className="p-6 bg-gray-50 min-h-screen">
+          <style>
+            {`
+              input[type=number]::-webkit-inner-spin-button,
+              input[type=number]::-webkit-outer-spin-button {
+                -webkit-appearance: none;
+                margin: 0;
+              }
+              input[type=number] {
+                -moz-appearance: textfield;
+              }
+            `}
+          </style>
+          <div className="mb-6 bg-white rounded-lg shadow-md p-4">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-gray-800">Timesheet Configuration</h2>
+              <div className="flex gap-2">
+                <div className="relative actions-dropdown">
+                  <button
+                    onClick={() => setShowActionsMenu(!showActionsMenu)}
+                    className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition font-semibold flex items-center gap-2"
+                  >
+                    Actions ▼
+                  </button>
+                  {showActionsMenu && (
+                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
                       <button
-                        onClick={() => setShowActionsMenu(!showActionsMenu)}
-                        className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition font-semibold flex items-center gap-2"
+                        onClick={() => {
+                          saveTimesheet();
+                          setShowActionsMenu(false);
+                        }}
+                        className="w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center gap-2 rounded-t-lg"
                       >
-                        Actions ▼
+                        💾 Backup
                       </button>
-                      {showActionsMenu && (
-                        <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
-                          <button
-                            onClick={() => {
-                              saveTimesheet();
-                              setShowActionsMenu(false);
-                            }}
-                            className="w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center gap-2 rounded-t-lg"
-                          >
-                            💾 Backup
-                          </button>
-                          <label className="w-full px-4 py-2 hover:bg-gray-100 flex items-center gap-2 cursor-pointer">
-                            📂 Load
-                            <input
-                              type="file"
-                              accept=".json"
-                              onChange={(e) => {
-                                loadTimesheet(e);
-                                setShowActionsMenu(false);
-                              }}
-                              className="hidden"
-                            />
-                          </label>
-                          <button
-                            onClick={clearTable}
-                            className="w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center gap-2 text-orange-600"
-                          >
-                            🗑️ Clear Table
-                          </button>
-                          <button
-                            onClick={clearTimesheet}
-                            className="w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center gap-2 text-red-600 rounded-b-lg"
-                          >
-                            🗑️ Clear All
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                    <button
-                      onClick={() => setShowConfig(!showConfig)}
-                      className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition font-semibold"
-                    >
-                      {showConfig ? 'Hide Configuration' : 'Show Configuration'}
-                    </button>
-                  </div>
-                </div>
-                
-                <div className="text-sm text-gray-600 mb-3 bg-blue-50 p-2 rounded">
-                  ✨ <strong>Auto-save enabled!</strong> Your data is automatically saved in your browser and will be here when you return.
-                </div>
-                
-                {showConfig && (
-                  <>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
-                      <div>
-                        <div className="flex items-center gap-2 mb-2">
-                          <label className="font-semibold text-gray-700 flex-1">Number of Workers:</label>
-                          <button
-                            onClick={() => setShowWorkerNames(!showWorkerNames)}
-                            className="px-3 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition text-sm"
-                          >
-                            {showWorkerNames ? '▼ Hide Names' : '▶ Edit Names & Rates'}
-                          </button>
-                        </div>
+                      <label className="w-full px-4 py-2 hover:bg-gray-100 flex items-center gap-2 cursor-pointer">
+                        📂 Load
                         <input
-                          type="number"
-                          min="1"
-                          max="20"
-                          value={numWorkers}
-                          onFocus={(e) => {
-                            e.target.select();
-                            setTimeout(() => e.target.select(), 0);
+                          type="file"
+                          accept=".json"
+                          onChange={(e) => {
+                            loadTimesheet(e);
+                            setShowActionsMenu(false);
                           }}
-                          onClick={(e) => e.target.select()}
-                          onChange={(e) => setNumWorkers(Math.max(1, Math.min(20, parseInt(e.target.value) || 1)))}
-                          className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 mb-3"
+                          className="hidden"
                         />
-                        
-                        {showWorkerNames && (
-                          <div className="space-y-2">
-                            {workers.map((worker, index) => (
-                              <div key={index} className="grid grid-cols-2 gap-2">
-                                <input
-                                  type="text"
-                                  value={worker}
-                                  onChange={(e) => handleWorkerNameChange(index, e.target.value)}
-                                  className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                  placeholder={`Worker ${index + 1}`}
-                                />
-                                <input
-                                  type="text"
-                                  value={ratesDisplay[worker] || ''}
-                                  onChange={(e) => handleRateChange(worker, e.target.value)}
-                                  className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                  placeholder="Rate (₡/hr)"
-                                />
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-
-                      <div>
-                        <div className="flex items-center gap-2 mb-2">
-                          <label className="font-semibold text-gray-700 flex-1">Number of Projects:</label>
-                          <button
-                            onClick={() => setShowProjectNames(!showProjectNames)}
-                            className="px-3 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition text-sm"
-                          >
-                            {showProjectNames ? '▼ Hide Names' : '▶ Edit Names'}
-                          </button>
-                        </div>
-                        <input
-                          type="number"
-                          min="1"
-                          max="26"
-                          value={numProjects}
-                          onFocus={(e) => {
-                            e.target.select();
-                            setTimeout(() => e.target.select(), 0);
-                          }}
-                          onClick={(e) => e.target.select()}
-                          onChange={(e) => setNumProjects(Math.max(1, Math.min(26, parseInt(e.target.value) || 1)))}
-                          className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 mb-3"
-                        />
-                        
-                        {showProjectNames && (
-                          <div className="space-y-2">
-                            {projects.map((project, index) => (
-                              <input
-                                key={index}
-                                type="text"
-                                value={project}
-                                onChange={(e) => handleProjectNameChange(index, e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                placeholder={`Project ${String.fromCharCode(65 + index)}`}
-                              />
-                            ))}
-                          </div>
-                        )}
-                      </div>
+                      </label>
+                      <button
+                        onClick={clearTable}
+                        className="w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center gap-2 text-orange-600"
+                      >
+                        🗑️ Clear Table
+                      </button>
+                      <button
+                        onClick={clearTimesheet}
+                        className="w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center gap-2 text-red-600 rounded-b-lg"
+                      >
+                        🗑️ Clear All
+                      </button>
                     </div>
+                  )}
+                </div>
+                <button
+                  onClick={() => setShowConfig(!showConfig)}
+                  className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition font-semibold"
+                >
+                  {showConfig ? 'Hide Configuration' : 'Show Configuration'}
+                </button>
+              </div>
+            </div>
+            
+            {showConfig && (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <label className="font-semibold text-gray-700 flex-1">Number of Workers:</label>
+                      <button
+                        onClick={() => setShowWorkerNames(!showWorkerNames)}
+                        className="px-3 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition text-sm"
+                      >
+                        {showWorkerNames ? '▼ Hide Names' : '▶ Edit Names & Rates'}
+                      </button>
+                    </div>
+                    <input
+                      type="number"
+                      min="1"
+                      max="20"
+                      value={numWorkers}
+                      onFocus={(e) => {
+                        e.target.select();
+                        setTimeout(() => e.target.select(), 0);
+                      }}
+                      onClick={(e) => e.target.select()}
+                      onChange={(e) => setNumWorkers(Math.max(1, Math.min(20, parseInt(e.target.value) || 1)))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 mb-3"
+                    />
                     
-                    <div className="mt-4">
-                      <label className="block font-semibold text-gray-700 mb-2">Week Ending Date:</label>
-                      <input
-                        type="date"
-                        value={weekEndingDate}
-                        onChange={(e) => handleDateChange(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                  </>
-                )}
-                
-                {weekEndingDate && (
-                  <div className="text-center p-2 bg-blue-50 rounded mt-4">
-                    <span className="text-lg font-semibold text-blue-700">
-                      Week Ending: {new Date(weekEndingDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
-                    </span>
+                    {showWorkerNames && (
+                      <div className="space-y-2">
+                        {workers.map((worker, index) => (
+                          <div key={index} className="grid grid-cols-2 gap-2">
+                            <input
+                              type="text"
+                              value={worker}
+                              onChange={(e) => handleWorkerNameChange(index, e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              placeholder={`Worker ${index + 1}`}
+                            />
+                            <input
+                              type="text"
+                              value={ratesDisplay[worker] || ''}
+                              onChange={(e) => handleRateChange(worker, e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              placeholder="Rate (₡/hr)"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                )}
+
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <label className="font-semibold text-gray-700 flex-1">Number of Projects:</label>
+                      <button
+                        onClick={() => setShowProjectNames(!showProjectNames)}
+                        className="px-3 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition text-sm"
+                      >
+                        {showProjectNames ? '▼ Hide Names' : '▶ Edit Names'}
+                      </button>
+                    </div>
+                    <input
+                      type="number"
+                      min="1"
+                      max="26"
+                      value={numProjects}
+                      onFocus={(e) => {
+                        e.target.select();
+                        setTimeout(() => e.target.select(), 0);
+                      }}
+                      onClick={(e) => e.target.select()}
+                      onChange={(e) => setNumProjects(Math.max(1, Math.min(26, parseInt(e.target.value) || 1)))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 mb-3"
+                    />
+                    
+                    {showProjectNames && (
+                      <div className="space-y-2">
+                        {projects.map((project, index) => (
+                          <input
+                            key={index}
+                            type="text"
+                            value={project}
+                            onChange={(e) => handleProjectNameChange(index, e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            placeholder={`Project ${String.fromCharCode(65 + index)}`}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                
+                <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block font-semibold text-gray-700 mb-2">Week Ending Date:</label>
+                    <input
+                      type="date"
+                      value={weekEndingDate}
+                      onChange={(e) => handleDateChange(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block font-semibold text-gray-700 mb-2">Include Saturday:</label>
+                    <div className="flex items-center h-10">
+                      <button
+                        onClick={() => setIncludeSaturday(!includeSaturday)}
+                        className={`px-6 py-2 rounded-lg font-semibold transition ${
+                          includeSaturday 
+                            ? 'bg-blue-600 text-white' 
+                            : 'bg-gray-400 text-white'
+                        }`}
+                      >
+                        {includeSaturday ? 'On' : 'Off'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+            
+            {weekEndingDate && (
+              <div className="text-center p-2 bg-blue-50 rounded mt-4">
+                <span className="text-lg font-semibold text-blue-700">
+                  Week Ending: {new Date(weekEndingDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                </span>
+              </div>
+            )}
+          </div>
+
+          <h1 className="text-3xl font-bold mb-6 text-gray-800">Weekly Timesheet Tracker</h1>
+          
+          <div className="bg-white rounded-lg shadow-md p-6 overflow-x-auto">
+            <table key={tableKey} className="w-full border-collapse text-sm">
+              <thead>
+                <tr className="bg-gray-200">
+                  <th className="border border-gray-400 px-3 py-2 text-left font-bold" rowSpan="2">Worker</th>
+                  <th className="border border-gray-400 px-3 py-2 text-center font-bold" rowSpan="2">Rate (₡/hr)</th>
+                  {days.map(day => (
+                    <th key={day} className="border border-gray-400 px-2 py-2 text-center font-bold" colSpan={projects.length}>
+                      {day}
+                    </th>
+                  ))}
+                  <th className="border border-gray-400 px-3 py-2 text-center font-bold bg-blue-100" rowSpan="2">
+                    Total Hours
+                  </th>
+                  <th className="border border-gray-400 px-3 py-2 text-center font-bold bg-green-100" rowSpan="2">
+                    Payout (₡)
+                  </th>
+                </tr>
+                <tr className="bg-gray-100">
+                  {days.map(day => (
+                    projects.map(project => (
+                      <th key={`${day}-${project}`} className="border border-gray-400 px-2 py-1 text-center text-xs">
+                        {project}
+                      </th>
+                    ))
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {workers.map((worker, workerIndex) => (
+                  <tr key={worker} className={workerIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                    <td className="border border-gray-400 px-3 py-2 font-semibold">{worker}</td>
+                    <td className="border border-gray-400 px-2 py-2 text-center bg-gray-100 font-semibold">
+                      {ratesDisplay[worker] ? `₡${ratesDisplay[worker]}` : '-'}
+                    </td>
+                    {days.map(day => (
+                      projects.map(project => (
+                        <td key={`${day}-${project}`} className="border border-gray-400 px-1 py-1">
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.5"
+                            value={(hours[worker]?.[day]?.[project]) || ''}
+                            onChange={(e) => handleHourChange(worker, day, project, e.target.value)}
+                            className="w-full px-1 py-1 border border-gray-300 rounded text-center focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                            placeholder="0"
+                          />
+                        </td>
+                      ))
+                    ))}
+                    <td className="border border-gray-400 px-3 py-2 text-center font-bold bg-blue-50">
+                      {calculateWorkerTotal(worker).toFixed(1)}
+                    </td>
+                    <td className="border border-gray-400 px-3 py-2 text-center font-bold bg-green-50">
+                      ₡{formatCurrency(calculatePayout(worker))}
+                    </td>
+                  </tr>
+                ))}
+                
+                <tr className="bg-gray-200 font-bold">
+                  <td className="border border-gray-400 px-3 py-2" colSpan="2">Daily Totals</td>
+                  {days.map(day => (
+                    projects.map(project => (
+                      <td key={`total-${day}-${project}`} className="border border-gray-400 px-2 py-2 text-center text-sm">
+                        {calculateDayProjectTotal(day, project).toFixed(1)}
+                      </td>
+                    ))
+                  ))}
+                  <td className="border border-gray-400 px-3 py-2 text-center bg-blue-200 text-lg">
+                    {calculateGrandTotal().toFixed(1)}
+                  </td>
+                  <td className="border border-gray-400 px-3 py-2 text-center bg-green-200 text-lg">
+                    ₡{formatCurrency(calculateTotalPayout())}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+
+            <div className="mt-6 grid grid-cols-2 gap-4">
+              <div className="bg-blue-50 rounded-lg p-4">
+                <h3 className="font-bold text-lg mb-2 text-blue-800">Project Costs</h3>
+                {projects.map(project => (
+                  <div key={project} className="flex justify-between py-1">
+                    <span className="font-semibold">{project}:</span>
+                    <span className="font-bold text-blue-700">₡{formatCurrency(calculateProjectTotalCost(project))}</span>
+                  </div>
+                ))}
               </div>
 
-              <h1 className="text-3xl font-bold mb-6 text-gray-800">Weekly Timesheet Tracker</h1>
-              
-              <div className="bg-white rounded-lg shadow-md p-6 overflow-x-auto">
-                <table className="w-full border-collapse text-sm">
-                  <thead>
-                    <tr className="bg-gray-200">
-                      <th className="border border-gray-400 px-3 py-2 text-left font-bold" rowSpan="2">Worker</th>
-                      <th className="border border-gray-400 px-3 py-2 text-center font-bold" rowSpan="2">Rate (₡/hr)</th>
-                      {days.map(day => (
-                        <th key={day} className="border border-gray-400 px-2 py-2 text-center font-bold" colSpan={projects.length}>
-                          {day}
-                        </th>
-                      ))}
-                      <th className="border border-gray-400 px-3 py-2 text-center font-bold bg-blue-100" rowSpan="2">
-                        Total Hours
-                      </th>
-                      <th className="border border-gray-400 px-3 py-2 text-center font-bold bg-green-100" rowSpan="2">
-                        Payout (₡)
-                      </th>
-                    </tr>
-                    <tr className="bg-gray-100">
-                      {days.map(day => (
-                        projects.map(project => (
-                          <th key={`${day}-${project}`} className="border border-gray-400 px-2 py-1 text-center text-xs">
-                            {project}
-                          </th>
-                        ))
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {workers.map((worker, workerIndex) => (
-                      <tr key={worker} className={workerIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                        <td className="border border-gray-400 px-3 py-2 font-semibold">{worker}</td>
-                        <td className="border border-gray-400 px-2 py-2 text-center bg-gray-100 font-semibold">
-                          {ratesDisplay[worker] ? `₡${ratesDisplay[worker]}` : '-'}
-                        </td>
-                        {days.map(day => (
-                          projects.map(project => (
-                            <td key={`${day}-${project}`} className="border border-gray-400 px-1 py-1">
-                              <input
-                                type="number"
-                                min="0"
-                                step="0.5"
-                                value={(hours[worker]?.[day]?.[project]) || ''}
-                                onChange={(e) => handleHourChange(worker, day, project, e.target.value)}
-                                className="w-full px-1 py-1 border border-gray-300 rounded text-center focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                                placeholder="0"
-                              />
-                            </td>
-                          ))
-                        ))}
-                        <td className="border border-gray-400 px-3 py-2 text-center font-bold bg-blue-50">
-                          {calculateWorkerTotal(worker).toFixed(1)}
-                        </td>
-                        <td className="border border-gray-400 px-3 py-2 text-center font-bold bg-green-50">
-                          ₡{formatCurrency(calculatePayout(worker))}
-                        </td>
-                      </tr>
-                    ))}
-                    
-                    <tr className="bg-gray-200 font-bold">
-                      <td className="border border-gray-400 px-3 py-2" colSpan="2">Daily Totals</td>
-                      {days.map(day => (
-                        projects.map(project => (
-                          <td key={`total-${day}-${project}`} className="border border-gray-400 px-2 py-2 text-center text-sm">
-                            {calculateDayProjectTotal(day, project).toFixed(1)}
-                          </td>
-                        ))
-                      ))}
-                      <td className="border border-gray-400 px-3 py-2 text-center bg-blue-200 text-lg">
-                        {calculateGrandTotal().toFixed(1)}
-                      </td>
-                      <td className="border border-gray-400 px-3 py-2 text-center bg-green-200 text-lg">
-                        ₡{formatCurrency(calculateTotalPayout())}
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-
-                <div className="mt-6 grid grid-cols-2 gap-4">
-                  <div className="bg-blue-50 rounded-lg p-4">
-                    <h3 className="font-bold text-lg mb-2 text-blue-800">Project Costs</h3>
-                    {projects.map(project => (
-                      <div key={project} className="flex justify-between py-1">
-                        <span className="font-semibold">{project}:</span>
-                        <span className="font-bold text-blue-700">₡{formatCurrency(calculateProjectTotalCost(project))}</span>
-                      </div>
-                    ))}
+              <div className="bg-purple-50 rounded-lg p-4">
+                <h3 className="font-bold text-lg mb-2 text-purple-800">Summary</h3>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="font-semibold">Total Hours:</span>
+                    <span className="font-bold text-purple-700">{calculateGrandTotal().toFixed(1)} hrs</span>
                   </div>
-
-                  <div className="bg-purple-50 rounded-lg p-4">
-                    <h3 className="font-bold text-lg mb-2 text-purple-800">Summary</h3>
-                    <div className="space-y-2">
-                      <div className="flex justify-between">
-                        <span className="font-semibold">Total Hours:</span>
-                        <span className="font-bold text-purple-700">{calculateGrandTotal().toFixed(1)} hrs</span>
-                      </div>
-                      <div className="flex justify-between pt-2 border-t border-purple-200">
-                        <span className="font-semibold">Total Payout:</span>
-                        <span className="font-bold text-purple-700 text-xl">₡{formatCurrency(calculateTotalPayout())}</span>
-                      </div>
-                    </div>
+                  <div className="flex justify-between pt-2 border-t border-purple-200">
+                    <span className="font-semibold">Total Payout:</span>
+                    <span className="font-bold text-purple-700 text-xl">₡{formatCurrency(calculateTotalPayout())}</span>
                   </div>
                 </div>
               </div>
             </div>
-          );
-        };
+          </div>
+        </div>
+      );
+    };
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<TimesheetTracker />);
-    </script>
+    ReactDOM.render(<TimesheetTracker />, document.getElementById('root'));
+  </script>
 </body>
 </html>
