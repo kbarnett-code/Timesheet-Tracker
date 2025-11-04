@@ -111,8 +111,15 @@
         }
       }, []);
 
-      // Save data to localStorage whenever it changes
+      // Save data to localStorage whenever it changes (but skip first render)
+      const [isInitialMount, setIsInitialMount] = useState(true);
+      
       useEffect(() => {
+        if (isInitialMount) {
+          setIsInitialMount(false);
+          return;
+        }
+        
         const timesheetData = {
           numWorkers,
           numProjects,
