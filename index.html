@@ -332,14 +332,31 @@
           reader.onload = (e) => {
             try {
               const data = JSON.parse(e.target.result);
-              setNumWorkers(data.numWorkers || 4);
-              setNumProjects(data.numProjects || 2);
-              setWorkers(data.workers || []);
-              setProjects(data.projects || []);
-              setWeekEndingDate(data.weekEndingDate || '');
-              setRates(data.rates || {});
-              setRatesDisplay(data.ratesDisplay || {});
-              setHours(data.hours || {});
+              const loadedData = {
+                numWorkers: data.numWorkers || 4,
+                numProjects: data.numProjects || 2,
+                workers: data.workers || [],
+                projects: data.projects || [],
+                weekEndingDate: data.weekEndingDate || '',
+                rates: data.rates || {},
+                ratesDisplay: data.ratesDisplay || {},
+                hours: data.hours || {},
+                includeSaturday: data.includeSaturday !== undefined ? data.includeSaturday : true
+              };
+              
+              setNumWorkers(loadedData.numWorkers);
+              setNumProjects(loadedData.numProjects);
+              setWorkers(loadedData.workers);
+              setProjects(loadedData.projects);
+              setWeekEndingDate(loadedData.weekEndingDate);
+              setRates(loadedData.rates);
+              setRatesDisplay(loadedData.ratesDisplay);
+              setHours(loadedData.hours);
+              setIncludeSaturday(loadedData.includeSaturday);
+              
+              // Immediately save to localStorage
+              localStorage.setItem('timesheetData', JSON.stringify(loadedData));
+              
               alert('Timesheet loaded successfully!');
             } catch (error) {
               alert('Error loading timesheet. Please check the file format.');
