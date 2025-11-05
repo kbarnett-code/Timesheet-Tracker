@@ -18,24 +18,75 @@
     const TimesheetTracker = () => {
       const allDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
       
-      const [numWorkers, setNumWorkers] = useState(4);
-      const [numProjects, setNumProjects] = useState(2);
-      const [workers, setWorkers] = useState(['Worker 1', 'Worker 2', 'Worker 3', 'Worker 4']);
-      const [projects, setProjects] = useState(['Project A', 'Project B']);
+      // Initialize state from localStorage or defaults
+      const getInitialState = () => {
+        const savedData = localStorage.getItem('timesheetData');
+        if (savedData) {
+          try {
+            const data = JSON.parse(savedData);
+            return {
+              numWorkers: data.numWorkers || 4,
+              numProjects: data.numProjects || 2,
+              workers: data.workers || ['Worker 1', 'Worker 2', 'Worker 3', 'Worker 4'],
+              projects: data.projects || ['Project A', 'Project B'],
+              includeSaturday: data.includeSaturday !== undefined ? data.includeSaturday : true,
+              weekEndingDate: data.weekEndingDate || '',
+              rates: data.rates || {},
+              ratesDisplay: data.ratesDisplay || {},
+              hours: data.hours || {}
+            };
+          } catch (error) {
+            console.error('Error loading saved data:', error);
+          }
+        }
+        return {
+          numWorkers: 4,
+          numProjects: 2,
+          workers: ['Worker 1', 'Worker 2', 'Worker 3', 'Worker 4'],
+          projects: ['Project A', 'Project B'],
+          includeSaturday: true,
+          weekEndingDate: '',
+          rates: {},
+          ratesDisplay: {},
+          hours: {}
+        };
+      };
+
+      const initial = getInitialState();
+      
+      const [numWorkers, setNumWorkers] = useState(initial.numWorkers);
+      const [numProjects, setNumProjects] = useState(initial.numProjects);
+      const [workers, setWorkers] = useState(initial.workers);
+      const [projects, setProjects] = useState(initial.projects);
       const [showConfig, setShowConfig] = useState(true);
       const [showWorkerNames, setShowWorkerNames] = useState(false);
       const [showProjectNames, setShowProjectNames] = useState(false);
       const [showActionsMenu, setShowActionsMenu] = useState(false);
-      const [includeSaturday, setIncludeSaturday] = useState(true);
-      const [weekEndingDate, setWeekEndingDate] = useState('');
-      const [rates, setRates] = useState({});
-      const [ratesDisplay, setRatesDisplay] = useState({});
-      const [hours, setHours] = useState({});
+      const [includeSaturday, setIncludeSaturday] = useState(initial.includeSaturday);
+      const [weekEndingDate, setWeekEndingDate] = useState(initial.weekEndingDate);
+      const [rates, setRates] = useState(initial.rates);
+      const [ratesDisplay, setRatesDisplay] = useState(initial.ratesDisplay);
+      const [hours, setHours] = useState(initial.hours);
       const [tableKey, setTableKey] = useState(0);
-      const hasLoadedFromStorage = useRef(false);
 
       // Dynamically determine which days to show based on toggle
       const days = includeSaturday ? allDays : allDays.slice(0, 5);
+
+      // Save to localStorage whenever data changes
+      useEffect(() => {
+        const timesheetData = {
+          numWorkers,
+          numProjects,
+          workers,
+          projects,
+          weekEndingDate,
+          rates,
+          ratesDisplay,
+          hours,
+          includeSaturday
+        };
+        localStorage.setItem('timesheetData', JSON.stringify(timesheetData));
+      }, [numWorkers, numProjects, workers, projects, weekEndingDate, rates, ratesDisplay, hours, includeSaturday]);
 
       // Close Actions dropdown when clicking outside
       useEffect(() => {
@@ -50,11 +101,6 @@
       }, [showActionsMenu]);
 
       useEffect(() => {
-        // Don't initialize if we haven't loaded from storage yet
-        if (!hasLoadedFromStorage.current) {
-          return;
-        }
-        
         setHours(prevHours => {
           const newHours = { ...prevHours };
           workers.forEach(worker => {
@@ -95,52 +141,6 @@
           return newRatesDisplay;
         });
       }, [workers, projects]);
-
-      // Load data from localStorage on mount
-      useEffect(() => {
-        const savedData = localStorage.getItem('timesheetData');
-        if (savedData) {
-          try {
-            const data = JSON.parse(savedData);
-            console.log('Loading from localStorage:', data); // Debug log
-            setNumWorkers(data.numWorkers || 4);
-            setNumProjects(data.numProjects || 2);
-            setWorkers(data.workers || ['Worker 1', 'Worker 2', 'Worker 3', 'Worker 4']);
-            setProjects(data.projects || ['Project A', 'Project B']);
-            setWeekEndingDate(data.weekEndingDate || '');
-            setRates(data.rates || {});
-            setRatesDisplay(data.ratesDisplay || {});
-            setHours(data.hours || {});
-            setIncludeSaturday(data.includeSaturday !== undefined ? data.includeSaturday : true);
-            hasLoadedFromStorage.current = true;
-          } catch (error) {
-            console.error('Error loading saved data:', error);
-          }
-        } else {
-          hasLoadedFromStorage.current = true;
-        }
-      }, []);
-
-      // Save data to localStorage whenever it changes (but only after initial load)
-      useEffect(() => {
-        if (!hasLoadedFromStorage.current) {
-          return;
-        }
-        
-        const timesheetData = {
-          numWorkers,
-          numProjects,
-          workers,
-          projects,
-          weekEndingDate,
-          rates,
-          ratesDisplay,
-          hours,
-          includeSaturday
-        };
-        console.log('Saving to localStorage:', timesheetData); // Debug log
-        localStorage.setItem('timesheetData', JSON.stringify(timesheetData));
-      }, [numWorkers, numProjects, workers, projects, weekEndingDate, rates, ratesDisplay, hours, includeSaturday]);
 
       useEffect(() => {
         const newWorkers = Array.from({ length: numWorkers }, (_, i) => 
@@ -328,7 +328,8 @@
           weekEndingDate,
           rates,
           ratesDisplay,
-          hours
+          hours,
+          includeSaturday
         };
         const dataStr = JSON.stringify(timesheetData, null, 2);
         const dataBlob = new Blob([dataStr], { type: 'application/json' });
@@ -347,31 +348,15 @@
           reader.onload = (e) => {
             try {
               const data = JSON.parse(e.target.result);
-              const loadedData = {
-                numWorkers: data.numWorkers || 4,
-                numProjects: data.numProjects || 2,
-                workers: data.workers || [],
-                projects: data.projects || [],
-                weekEndingDate: data.weekEndingDate || '',
-                rates: data.rates || {},
-                ratesDisplay: data.ratesDisplay || {},
-                hours: data.hours || {},
-                includeSaturday: data.includeSaturday !== undefined ? data.includeSaturday : true
-              };
-              
-              setNumWorkers(loadedData.numWorkers);
-              setNumProjects(loadedData.numProjects);
-              setWorkers(loadedData.workers);
-              setProjects(loadedData.projects);
-              setWeekEndingDate(loadedData.weekEndingDate);
-              setRates(loadedData.rates);
-              setRatesDisplay(loadedData.ratesDisplay);
-              setHours(loadedData.hours);
-              setIncludeSaturday(loadedData.includeSaturday);
-              
-              // Immediately save to localStorage
-              localStorage.setItem('timesheetData', JSON.stringify(loadedData));
-              
+              setNumWorkers(data.numWorkers || 4);
+              setNumProjects(data.numProjects || 2);
+              setWorkers(data.workers || []);
+              setProjects(data.projects || []);
+              setWeekEndingDate(data.weekEndingDate || '');
+              setRates(data.rates || {});
+              setRatesDisplay(data.ratesDisplay || {});
+              setHours(data.hours || {});
+              setIncludeSaturday(data.includeSaturday !== undefined ? data.includeSaturday : true);
               alert('Timesheet loaded successfully!');
             } catch (error) {
               alert('Error loading timesheet. Please check the file format.');
