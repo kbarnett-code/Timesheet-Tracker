@@ -508,7 +508,7 @@
                     {showWorkerNames && (
                       <div className="space-y-2">
                         {workers.map((worker, index) => (
-                          <div key={index} className="grid grid-cols-2 gap-2">
+                          <div key={index} className="grid grid-cols-[1fr_1fr_auto] gap-2 items-center">
                             <input
                               type="text"
                               value={worker}
@@ -523,8 +523,40 @@
                               className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                               placeholder="Rate (₡/hr)"
                             />
+                            <button
+                              onClick={() => {
+                                if (workers.length > 1) {
+                                  const newWorkers = workers.filter((_, i) => i !== index);
+                                  setWorkers(newWorkers);
+                                  const newRates = { ...rates };
+                                  delete newRates[worker];
+                                  setRates(newRates);
+                                  const newRatesDisplay = { ...ratesDisplay };
+                                  delete newRatesDisplay[worker];
+                                  setRatesDisplay(newRatesDisplay);
+                                  const newHours = { ...hours };
+                                  delete newHours[worker];
+                                  setHours(newHours);
+                                  setNumWorkers(newWorkers.length);
+                                }
+                              }}
+                              className="px-3 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition"
+                              title="Delete worker"
+                            >
+                              🗑️
+                            </button>
                           </div>
                         ))}
+                        <button
+                          onClick={() => {
+                            const newWorkerName = `Worker ${workers.length + 1}`;
+                            setWorkers([...workers, newWorkerName]);
+                            setNumWorkers(workers.length + 1);
+                          }}
+                          className="w-full px-3 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition font-semibold"
+                        >
+                          + Add Worker
+                        </button>
                       </div>
                     )}
                   </div>
@@ -556,15 +588,50 @@
                     {showProjectNames && (
                       <div className="space-y-2">
                         {projects.map((project, index) => (
-                          <input
-                            key={index}
-                            type="text"
-                            value={project}
-                            onChange={(e) => handleProjectNameChange(index, e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            placeholder={`Project ${String.fromCharCode(65 + index)}`}
-                          />
+                          <div key={index} className="grid grid-cols-[1fr_auto] gap-2 items-center">
+                            <input
+                              type="text"
+                              value={project}
+                              onChange={(e) => handleProjectNameChange(index, e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              placeholder={`Project ${String.fromCharCode(65 + index)}`}
+                            />
+                            <button
+                              onClick={() => {
+                                if (projects.length > 1) {
+                                  const newProjects = projects.filter((_, i) => i !== index);
+                                  setProjects(newProjects);
+                                  const newHours = { ...hours };
+                                  workers.forEach(worker => {
+                                    if (newHours[worker]) {
+                                      allDays.forEach(day => {
+                                        if (newHours[worker][day]) {
+                                          delete newHours[worker][day][project];
+                                        }
+                                      });
+                                    }
+                                  });
+                                  setHours(newHours);
+                                  setNumProjects(newProjects.length);
+                                }
+                              }}
+                              className="px-3 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition"
+                              title="Delete project"
+                            >
+                              🗑️
+                            </button>
+                          </div>
                         ))}
+                        <button
+                          onClick={() => {
+                            const newProjectName = String.fromCharCode(65 + projects.length);
+                            setProjects([...projects, newProjectName]);
+                            setNumProjects(projects.length + 1);
+                          }}
+                          className="w-full px-3 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition font-semibold"
+                        >
+                          + Add Project
+                        </button>
                       </div>
                     )}
                   </div>
