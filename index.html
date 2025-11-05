@@ -24,10 +24,45 @@
         if (savedData) {
           try {
             const data = JSON.parse(savedData);
+            // Migrate old data format to new format with IDs
+            let workersData = data.workers;
+            if (workersData && workersData.length > 0 && typeof workersData[0] === 'string') {
+              // Old format - convert to new format
+              workersData = workersData.map((name, index) => ({
+                id: `worker_${Date.now()}_${index}`,
+                name: name
+              }));
+              // Migrate rates and hours to use IDs
+              const newRates = {};
+              const newRatesDisplay = {};
+              const newHours = {};
+              workersData.forEach((worker, index) => {
+                const oldName = data.workers[index];
+                newRates[worker.id] = data.rates?.[oldName] || '';
+                newRatesDisplay[worker.id] = data.ratesDisplay?.[oldName] || '';
+                newHours[worker.id] = data.hours?.[oldName] || {};
+              });
+              return {
+                numWorkers: data.numWorkers || 4,
+                numProjects: data.numProjects || 2,
+                workers: workersData,
+                projects: data.projects || ['Project A', 'Project B'],
+                includeSaturday: data.includeSaturday !== undefined ? data.includeSaturday : true,
+                weekEndingDate: data.weekEndingDate || '',
+                rates: newRates,
+                ratesDisplay: newRatesDisplay,
+                hours: newHours
+              };
+            }
             return {
               numWorkers: data.numWorkers || 4,
               numProjects: data.numProjects || 2,
-              workers: data.workers || ['Worker 1', 'Worker 2', 'Worker 3', 'Worker 4'],
+              workers: data.workers || [
+                { id: 'worker_1', name: 'Worker 1' },
+                { id: 'worker_2', name: 'Worker 2' },
+                { id: 'worker_3', name: 'Worker 3' },
+                { id: 'worker_4', name: 'Worker 4' }
+              ],
               projects: data.projects || ['Project A', 'Project B'],
               includeSaturday: data.includeSaturday !== undefined ? data.includeSaturday : true,
               weekEndingDate: data.weekEndingDate || '',
@@ -42,7 +77,12 @@
         return {
           numWorkers: 4,
           numProjects: 2,
-          workers: ['Worker 1', 'Worker 2', 'Worker 3', 'Worker 4'],
+          workers: [
+            { id: 'worker_1', name: 'Worker 1' },
+            { id: 'worker_2', name: 'Worker 2' },
+            { id: 'worker_3', name: 'Worker 3' },
+            { id: 'worker_4', name: 'Worker 4' }
+          ],
           projects: ['Project A', 'Project B'],
           includeSaturday: true,
           weekEndingDate: '',
@@ -104,16 +144,16 @@
         setHours(prevHours => {
           const newHours = { ...prevHours };
           workers.forEach(worker => {
-            if (!newHours[worker]) {
-              newHours[worker] = {};
+            if (!newHours[worker.id]) {
+              newHours[worker.id] = {};
             }
             allDays.forEach(day => {
-              if (!newHours[worker][day]) {
-                newHours[worker][day] = {};
+              if (!newHours[worker.id][day]) {
+                newHours[worker.id][day] = {};
               }
               projects.forEach(project => {
-                if (newHours[worker][day][project] === undefined) {
-                  newHours[worker][day][project] = '';
+                if (newHours[worker.id][day][project] === undefined) {
+                  newHours[worker.id][day][project] = '';
                 }
               });
             });
@@ -124,8 +164,8 @@
         setRates(prevRates => {
           const newRates = { ...prevRates };
           workers.forEach(worker => {
-            if (newRates[worker] === undefined) {
-              newRates[worker] = '';
+            if (newRates[worker.id] === undefined) {
+              newRates[worker.id] = '';
             }
           });
           return newRates;
@@ -134,8 +174,8 @@
         setRatesDisplay(prevRatesDisplay => {
           const newRatesDisplay = { ...prevRatesDisplay };
           workers.forEach(worker => {
-            if (newRatesDisplay[worker] === undefined) {
-              newRatesDisplay[worker] = '';
+            if (newRatesDisplay[worker.id] === undefined) {
+              newRatesDisplay[worker.id] = '';
             }
           });
           return newRatesDisplay;
@@ -144,7 +184,7 @@
 
       useEffect(() => {
         const newWorkers = Array.from({ length: numWorkers }, (_, i) => 
-          workers[i] || `Worker ${i + 1}`
+          workers[i] || { id: `worker_${Date.now()}_${i}`, name: `Worker ${i + 1}` }
         );
         setWorkers(newWorkers);
       }, [numWorkers]);
@@ -157,31 +197,9 @@
       }, [numProjects]);
 
       const handleWorkerNameChange = (index, newName) => {
-        const oldName = workers[index];
         const newWorkers = [...workers];
-        newWorkers[index] = newName;
+        newWorkers[index] = { ...newWorkers[index], name: newName };
         setWorkers(newWorkers);
-        
-        const newRates = { ...rates };
-        if (oldName !== newName) {
-          newRates[newName] = newRates[oldName] || '';
-          delete newRates[oldName];
-        }
-        setRates(newRates);
-        
-        const newRatesDisplay = { ...ratesDisplay };
-        if (oldName !== newName) {
-          newRatesDisplay[newName] = newRatesDisplay[oldName] || '';
-          delete newRatesDisplay[oldName];
-        }
-        setRatesDisplay(newRatesDisplay);
-        
-        const newHours = { ...hours };
-        if (oldName !== newName) {
-          newHours[newName] = newHours[oldName] || {};
-          delete newHours[oldName];
-        }
-        setHours(newHours);
       };
 
       const handleProjectNameChange = (index, newName) => {
@@ -192,11 +210,11 @@
         
         const newHours = { ...hours };
         workers.forEach(worker => {
-          if (newHours[worker]) {
+          if (newHours[worker.id]) {
             allDays.forEach(day => {
-              if (newHours[worker][day] && oldName !== newName) {
-                newHours[worker][day][newName] = newHours[worker][day][oldName] || '';
-                delete newHours[worker][day][oldName];
+              if (newHours[worker.id][day] && oldName !== newName) {
+                newHours[worker.id][day][newName] = newHours[worker.id][day][oldName] || '';
+                delete newHours[worker.id][day][oldName];
               }
             });
           }
@@ -224,15 +242,15 @@
         }
       };
 
-      const handleHourChange = (worker, day, project, value) => {
+      const handleHourChange = (workerId, day, project, value) => {
         const numValue = value === '' ? '' : parseFloat(value);
         if (value === '' || (!isNaN(numValue) && numValue >= 0)) {
           setHours(prev => ({
             ...prev,
-            [worker]: {
-              ...prev[worker],
+            [workerId]: {
+              ...prev[workerId],
               [day]: {
-                ...prev[worker][day],
+                ...prev[workerId][day],
                 [project]: numValue
               }
             }
@@ -240,28 +258,28 @@
         }
       };
 
-      const handleRateChange = (worker, value) => {
+      const handleRateChange = (workerId, value) => {
         const cleanValue = value.replace(/[^\d]/g, '');
         
         if (cleanValue === '') {
           setRates(prev => ({
             ...prev,
-            [worker]: ''
+            [workerId]: ''
           }));
           setRatesDisplay(prev => ({
             ...prev,
-            [worker]: ''
+            [workerId]: ''
           }));
         } else {
           const numValue = parseInt(cleanValue);
           if (!isNaN(numValue) && numValue >= 0) {
             setRates(prev => ({
               ...prev,
-              [worker]: cleanValue
+              [workerId]: cleanValue
             }));
             setRatesDisplay(prev => ({
               ...prev,
-              [worker]: numValue.toLocaleString('en-US')
+              [workerId]: numValue.toLocaleString('en-US')
             }));
           }
         }
@@ -271,40 +289,40 @@
         return Math.round(value).toLocaleString('en-US');
       };
 
-      const calculateDailyTotal = (worker, day) => {
-        if (!hours[worker] || !hours[worker][day]) return 0;
+      const calculateDailyTotal = (workerId, day) => {
+        if (!hours[workerId] || !hours[workerId][day]) return 0;
         return projects.reduce((sum, project) => {
-          const value = parseFloat(hours[worker][day][project]) || 0;
+          const value = parseFloat(hours[workerId][day][project]) || 0;
           return sum + value;
         }, 0);
       };
 
-      const calculateWorkerTotal = (worker) => {
+      const calculateWorkerTotal = (workerId) => {
         return days.reduce((sum, day) => {
-          return sum + calculateDailyTotal(worker, day);
+          return sum + calculateDailyTotal(workerId, day);
         }, 0);
       };
 
-      const calculatePayout = (worker) => {
-        const totalHours = calculateWorkerTotal(worker);
-        const rate = parseFloat(rates[worker]) || 0;
+      const calculatePayout = (workerId) => {
+        const totalHours = calculateWorkerTotal(workerId);
+        const rate = parseFloat(rates[workerId]) || 0;
         return totalHours * rate;
       };
 
       const calculateDayProjectTotal = (day, project) => {
         return workers.reduce((sum, worker) => {
-          if (!hours[worker] || !hours[worker][day]) return sum;
-          const value = parseFloat(hours[worker][day][project]) || 0;
+          if (!hours[worker.id] || !hours[worker.id][day]) return sum;
+          const value = parseFloat(hours[worker.id][day][project]) || 0;
           return sum + value;
         }, 0);
       };
 
       const calculateProjectTotalCost = (project) => {
         return workers.reduce((sum, worker) => {
-          const rate = parseFloat(rates[worker]) || 0;
+          const rate = parseFloat(rates[worker.id]) || 0;
           const projectHours = days.reduce((hrs, day) => {
-            if (!hours[worker] || !hours[worker][day]) return hrs;
-            const value = parseFloat(hours[worker][day][project]) || 0;
+            if (!hours[worker.id] || !hours[worker.id][day]) return hrs;
+            const value = parseFloat(hours[worker.id][day][project]) || 0;
             return hrs + value;
           }, 0);
           return sum + (projectHours * rate);
@@ -312,11 +330,11 @@
       };
 
       const calculateGrandTotal = () => {
-        return workers.reduce((sum, worker) => sum + calculateWorkerTotal(worker), 0);
+        return workers.reduce((sum, worker) => sum + calculateWorkerTotal(worker.id), 0);
       };
 
       const calculateTotalPayout = () => {
-        return workers.reduce((sum, worker) => sum + calculatePayout(worker), 0);
+        return workers.reduce((sum, worker) => sum + calculatePayout(worker.id), 0);
       };
 
       const saveTimesheet = () => {
@@ -348,14 +366,40 @@
           reader.onload = (e) => {
             try {
               const data = JSON.parse(e.target.result);
-              setNumWorkers(data.numWorkers || 4);
-              setNumProjects(data.numProjects || 2);
-              setWorkers(data.workers || []);
-              setProjects(data.projects || []);
-              setWeekEndingDate(data.weekEndingDate || '');
-              setRates(data.rates || {});
-              setRatesDisplay(data.ratesDisplay || {});
-              setHours(data.hours || {});
+              // Handle old format
+              let workersData = data.workers;
+              if (workersData && workersData.length > 0 && typeof workersData[0] === 'string') {
+                workersData = workersData.map((name, index) => ({
+                  id: `worker_${Date.now()}_${index}`,
+                  name: name
+                }));
+                const newRates = {};
+                const newRatesDisplay = {};
+                const newHours = {};
+                workersData.forEach((worker, index) => {
+                  const oldName = data.workers[index];
+                  newRates[worker.id] = data.rates?.[oldName] || '';
+                  newRatesDisplay[worker.id] = data.ratesDisplay?.[oldName] || '';
+                  newHours[worker.id] = data.hours?.[oldName] || {};
+                });
+                setNumWorkers(data.numWorkers || 4);
+                setNumProjects(data.numProjects || 2);
+                setWorkers(workersData);
+                setProjects(data.projects || []);
+                setWeekEndingDate(data.weekEndingDate || '');
+                setRates(newRates);
+                setRatesDisplay(newRatesDisplay);
+                setHours(newHours);
+              } else {
+                setNumWorkers(data.numWorkers || 4);
+                setNumProjects(data.numProjects || 2);
+                setWorkers(data.workers || []);
+                setProjects(data.projects || []);
+                setWeekEndingDate(data.weekEndingDate || '');
+                setRates(data.rates || {});
+                setRatesDisplay(data.ratesDisplay || {});
+                setHours(data.hours || {});
+              }
               setIncludeSaturday(data.includeSaturday !== undefined ? data.includeSaturday : true);
               alert('Timesheet loaded successfully!');
             } catch (error) {
@@ -371,7 +415,12 @@
         if (window.confirm('Are you sure you want to clear all data? This cannot be undone.')) {
           setNumWorkers(4);
           setNumProjects(2);
-          setWorkers(['Worker 1', 'Worker 2', 'Worker 3', 'Worker 4']);
+          setWorkers([
+            { id: 'worker_1', name: 'Worker 1' },
+            { id: 'worker_2', name: 'Worker 2' },
+            { id: 'worker_3', name: 'Worker 3' },
+            { id: 'worker_4', name: 'Worker 4' }
+          ]);
           setProjects(['Project A', 'Project B']);
           setWeekEndingDate('');
           setRates({});
@@ -387,11 +436,11 @@
         if (window.confirm('Clear all hours data? Worker names, rates, and configuration will be kept.')) {
           const emptyHours = {};
           workers.forEach(worker => {
-            emptyHours[worker] = {};
+            emptyHours[worker.id] = {};
             days.forEach(day => {
-              emptyHours[worker][day] = {};
+              emptyHours[worker.id][day] = {};
               projects.forEach(project => {
-                emptyHours[worker][day][project] = '';
+                emptyHours[worker.id][day][project] = '';
               });
             });
           });
@@ -508,18 +557,18 @@
                     {showWorkerNames && (
                       <div className="space-y-2">
                         {workers.map((worker, index) => (
-                          <div key={index} className="flex gap-2 items-center">
+                          <div key={worker.id} className="flex gap-2 items-center">
                             <input
                               type="text"
-                              value={worker}
+                              value={worker.name}
                               onChange={(e) => handleWorkerNameChange(index, e.target.value)}
                               className="flex-1 px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                               placeholder={`Worker ${index + 1}`}
                             />
                             <input
                               type="text"
-                              value={ratesDisplay[worker] || ''}
-                              onChange={(e) => handleRateChange(worker, e.target.value)}
+                              value={ratesDisplay[worker.id] || ''}
+                              onChange={(e) => handleRateChange(worker.id, e.target.value)}
                               className="flex-1 px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                               placeholder="Rate (₡/hr)"
                             />
@@ -529,33 +578,37 @@
                                   const newWorkers = workers.filter((_, i) => i !== index);
                                   setWorkers(newWorkers);
                                   const newRates = { ...rates };
-                                  delete newRates[worker];
+                                  delete newRates[worker.id];
                                   setRates(newRates);
                                   const newRatesDisplay = { ...ratesDisplay };
-                                  delete newRatesDisplay[worker];
+                                  delete newRatesDisplay[worker.id];
                                   setRatesDisplay(newRatesDisplay);
                                   const newHours = { ...hours };
-                                  delete newHours[worker];
+                                  delete newHours[worker.id];
                                   setHours(newHours);
                                   setNumWorkers(newWorkers.length);
                                 }
                               }}
-                              className="px-3 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition"
+                              className="w-8 h-8 flex items-center justify-center text-red-600 hover:bg-red-100 rounded transition text-xl"
                               title="Delete worker"
                             >
-                              🗑️
+                              ✕
                             </button>
                           </div>
                         ))}
                         <button
                           onClick={() => {
-                            const newWorkerName = `Worker ${workers.length + 1}`;
-                            setWorkers([...workers, newWorkerName]);
+                            const newWorker = { 
+                              id: `worker_${Date.now()}`, 
+                              name: `Worker ${workers.length + 1}` 
+                            };
+                            setWorkers([...workers, newWorker]);
                             setNumWorkers(workers.length + 1);
                           }}
-                          className="w-full px-3 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition font-semibold"
+                          className="w-8 h-8 flex items-center justify-center text-green-600 hover:bg-green-100 rounded transition text-2xl font-bold"
+                          title="Add worker"
                         >
-                          + Add Worker
+                          +
                         </button>
                       </div>
                     )}
@@ -603,10 +656,10 @@
                                   setProjects(newProjects);
                                   const newHours = { ...hours };
                                   workers.forEach(worker => {
-                                    if (newHours[worker]) {
+                                    if (newHours[worker.id]) {
                                       allDays.forEach(day => {
-                                        if (newHours[worker][day]) {
-                                          delete newHours[worker][day][project];
+                                        if (newHours[worker.id][day]) {
+                                          delete newHours[worker.id][day][project];
                                         }
                                       });
                                     }
@@ -615,10 +668,10 @@
                                   setNumProjects(newProjects.length);
                                 }
                               }}
-                              className="px-3 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition"
+                              className="w-8 h-8 flex items-center justify-center text-red-600 hover:bg-red-100 rounded transition text-xl"
                               title="Delete project"
                             >
-                              🗑️
+                              ✕
                             </button>
                           </div>
                         ))}
@@ -628,9 +681,10 @@
                             setProjects([...projects, newProjectName]);
                             setNumProjects(projects.length + 1);
                           }}
-                          className="w-full px-3 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition font-semibold"
+                          className="w-8 h-8 flex items-center justify-center text-green-600 hover:bg-green-100 rounded transition text-2xl font-bold"
+                          title="Add project"
                         >
-                          + Add Project
+                          +
                         </button>
                       </div>
                     )}
@@ -708,10 +762,10 @@
               </thead>
               <tbody>
                 {workers.map((worker, workerIndex) => (
-                  <tr key={worker} className={workerIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                    <td className="border border-gray-400 px-3 py-2 font-semibold">{worker}</td>
+                  <tr key={worker.id} className={workerIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                    <td className="border border-gray-400 px-3 py-2 font-semibold">{worker.name}</td>
                     <td className="border border-gray-400 px-2 py-2 text-center bg-gray-100 font-semibold">
-                      {ratesDisplay[worker] ? `₡${ratesDisplay[worker]}` : '-'}
+                      {ratesDisplay[worker.id] ? `₡${ratesDisplay[worker.id]}` : '-'}
                     </td>
                     {days.map(day => (
                       projects.map(project => (
@@ -720,8 +774,8 @@
                             type="number"
                             min="0"
                             step="0.5"
-                            value={(hours[worker]?.[day]?.[project]) || ''}
-                            onChange={(e) => handleHourChange(worker, day, project, e.target.value)}
+                            value={(hours[worker.id]?.[day]?.[project]) || ''}
+                            onChange={(e) => handleHourChange(worker.id, day, project, e.target.value)}
                             className="w-full px-1 py-1 border border-gray-300 rounded text-center focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                             placeholder="0"
                           />
@@ -729,10 +783,10 @@
                       ))
                     ))}
                     <td className="border border-gray-400 px-3 py-2 text-center font-bold bg-blue-50">
-                      {calculateWorkerTotal(worker).toFixed(1)}
+                      {calculateWorkerTotal(worker.id).toFixed(1)}
                     </td>
                     <td className="border border-gray-400 px-3 py-2 text-center font-bold bg-green-50">
-                      ₡{formatCurrency(calculatePayout(worker))}
+                      ₡{formatCurrency(calculatePayout(worker.id))}
                     </td>
                   </tr>
                 ))}
