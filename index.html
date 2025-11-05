@@ -508,19 +508,19 @@
                     {showWorkerNames && (
                       <div className="space-y-2">
                         {workers.map((worker, index) => (
-                          <div key={index} className="grid grid-cols-[1fr_1fr_auto] gap-2 items-center">
+                          <div key={index} className="flex gap-2 items-center">
                             <input
                               type="text"
                               value={worker}
                               onChange={(e) => handleWorkerNameChange(index, e.target.value)}
-                              className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              className="flex-1 px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                               placeholder={`Worker ${index + 1}`}
                             />
                             <input
                               type="text"
                               value={ratesDisplay[worker] || ''}
                               onChange={(e) => handleRateChange(worker, e.target.value)}
-                              className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              className="flex-1 px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                               placeholder="Rate (₡/hr)"
                             />
                             <button
@@ -588,12 +588,12 @@
                     {showProjectNames && (
                       <div className="space-y-2">
                         {projects.map((project, index) => (
-                          <div key={index} className="grid grid-cols-[1fr_auto] gap-2 items-center">
+                          <div key={index} className="flex gap-2 items-center">
                             <input
                               type="text"
                               value={project}
                               onChange={(e) => handleProjectNameChange(index, e.target.value)}
-                              className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              className="flex-1 px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                               placeholder={`Project ${String.fromCharCode(65 + index)}`}
                             />
                             <button
