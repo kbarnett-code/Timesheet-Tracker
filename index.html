@@ -50,6 +50,11 @@
       }, [showActionsMenu]);
 
       useEffect(() => {
+        // Don't initialize if we haven't loaded from storage yet
+        if (!hasLoadedFromStorage.current) {
+          return;
+        }
+        
         setHours(prevHours => {
           const newHours = { ...prevHours };
           workers.forEach(worker => {
