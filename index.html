@@ -13,7 +13,7 @@
   <div id="root"></div>
 
   <script type="text/babel">
-    const { useState, useEffect } = React;
+    const { useState, useEffect, useRef } = React;
 
     const TimesheetTracker = () => {
       const allDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -32,6 +32,7 @@
       const [ratesDisplay, setRatesDisplay] = useState({});
       const [hours, setHours] = useState({});
       const [tableKey, setTableKey] = useState(0);
+      const hasLoadedFromStorage = useRef(false);
 
       // Dynamically determine which days to show based on toggle
       const days = includeSaturday ? allDays : allDays.slice(0, 5);
@@ -96,6 +97,7 @@
         if (savedData) {
           try {
             const data = JSON.parse(savedData);
+            console.log('Loading from localStorage:', data); // Debug log
             setNumWorkers(data.numWorkers || 4);
             setNumProjects(data.numProjects || 2);
             setWorkers(data.workers || ['Worker 1', 'Worker 2', 'Worker 3', 'Worker 4']);
@@ -105,18 +107,18 @@
             setRatesDisplay(data.ratesDisplay || {});
             setHours(data.hours || {});
             setIncludeSaturday(data.includeSaturday !== undefined ? data.includeSaturday : true);
+            hasLoadedFromStorage.current = true;
           } catch (error) {
             console.error('Error loading saved data:', error);
           }
+        } else {
+          hasLoadedFromStorage.current = true;
         }
       }, []);
 
-      // Save data to localStorage whenever it changes (but skip first render)
-      const [isInitialMount, setIsInitialMount] = useState(true);
-      
+      // Save data to localStorage whenever it changes (but only after initial load)
       useEffect(() => {
-        if (isInitialMount) {
-          setIsInitialMount(false);
+        if (!hasLoadedFromStorage.current) {
           return;
         }
         
@@ -131,6 +133,7 @@
           hours,
           includeSaturday
         };
+        console.log('Saving to localStorage:', timesheetData); // Debug log
         localStorage.setItem('timesheetData', JSON.stringify(timesheetData));
       }, [numWorkers, numProjects, workers, projects, weekEndingDate, rates, ratesDisplay, hours, includeSaturday]);
 
